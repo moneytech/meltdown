@@ -1,13 +1,13 @@
-CFLAGS=-O3 -pthread -Wno-attributes 
+override CFLAGS += -O3 -pthread -Wno-attributes
 CC=gcc
 
 all: libkdump.a libkdump.so
 
 libkdump.o: libkdump.c
-	$(CC) -c -fPIC libkdump.c -o libkdump.o $(CFLAGS)
+	$(CC) -c -m64 -fPIC libkdump.c -o libkdump.o $(CFLAGS)
 	
 libkdump.so: libkdump.o
-	$(CC) -shared -Wl,-soname,libkdump.so -o libkdump.so libkdump.o $(CFLAGS)
+	$(CC) -shared -m64 -Wl,-soname,libkdump.so -o libkdump.so libkdump.o $(CFLAGS)
 	
 libkdump.a: libkdump.o
 	ar rcs libkdump.a libkdump.o 

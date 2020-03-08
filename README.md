@@ -1,8 +1,8 @@
 # Meltdown Proof-of-Concept
 
-This repository contains several applications, demonstrating the [Meltdown bug](https://meltdown.help). For technical information about the bug, refer to the paper: 
+This repository contains several applications, demonstrating the [Meltdown bug](https://meltdownattack.com). For technical information about the bug, refer to the paper: 
 
-* [Meltdown](https://meltdown.help/meltdown.pdf) by Lipp, Schwarz, Gruss, Prescher, Haas, Mangard, Kocher, Genkin, Yarom, and Hamburg
+* [Meltdown](https://meltdownattack.com/meltdown.pdf) by Lipp, Schwarz, Gruss, Prescher, Haas, Mangard, Kocher, Genkin, Yarom, and Hamburg
 
 The applications in this repository are built with [libkdump](https://github.com/IAIK/Meltdown/tree/master/libkdump), a library we developed for the paper. This library simplifies exploitation of the bug by automatically adapting to certain properties of the environment. 
 
@@ -108,7 +108,7 @@ It should output something like this:
 [+] Exit with Ctrl+C if you are done reading the secret
 ```
 
-Let the `secret` program running, and start `physical_reader`. The first parameter is the physical address printed by `secret`. If you do not have KASLR disabled,  the second parameter is the offset of the direct physical map.
+While the `secret` program is running, start `physical_reader`. The first parameter is the physical address printed by `secret`. If you do not have KASLR disabled,  the second parameter is the offset of the direct physical map.
 ```bash
 taskset 0x1 ./physical_reader 0x390fff400 0xffff880000000000
 ```
@@ -140,10 +140,10 @@ make
 Then, run the `memdump` tool to dump memory contents. If you executed `memory_filler` before, you should see some string fragments. 
 If you have Firefox or Chrome with multiple tabs running, you might also see parts of the websites which are open or were recently closed. 
 
-The first parameter is the physical address at which the dump should begin (leave empty to start at the first gigabyte). If you do not have KASLR disabled,  the second parameter is the offset of the direct physical map.
+The first parameter is the physical address at which the dump should begin (leave empty to start at the first gigabyte). The second parameter is the amount of bytes you want to be read, to read it all give -1. If you do not have KASLR disabled,  the third parameter is the offset of the direct physical map.
 
 ```bash
-taskset 0x1 ./memdump 0x240000000 0xffff880000000000 # start at 9 GB
+taskset 0x1 ./memdump 0x240000000 -1 0xffff880000000000 # start at 9 GB
 ```
 
 You should get a hexdump of parts of the memory (potentially even containing secrets such as passwords, see example in the paper), e.g.:
@@ -167,6 +167,42 @@ You should get a hexdump of parts of the memory (potentially even containing sec
  24000430f: | 61 74 69 6f 6e 73 2c 20 79 6f 75 20 6a 75 73 74 | ations, you just |
  24000431f: | 20 73 70 69 65 64 20 6f 6e 20 61 6e 20 61 70 70 |  spied on an app |
 ```
+
+## Frequently Asked Questions
+
+* **Does it work on Windows / Ubuntu on Windows (WSL) / Mac OS?**
+
+    No. This PoC only works on Linux, as it uses properties specific to the Linux kernel, such as the direct physical map. 
+
+* **Can I run the PoC in a virtual machine?**
+
+    Yes, the PoC also works on virtual machines. However, due to the additional layer introduced by a virtual machine, it might not work as good as on native hardware. 
+
+* **The KASLR program (`kaslr`) does not find the offset!**
+
+    The `kaslr` tool only does very few measurements to be fast. If it does not find the offset, there are two possibilities:
+    
+    * change the number of retries in `kaslr.c`: `config.retries = 1000;`
+    * use the kernel module in `kaslr_offset` to directly read the offset from the kernel. Install the kernel headers for your kernel (```sudo apt-get install linux-headers-`uname -r` ```) and run `sudo ./direct_physical_map.sh`
+
+* **You said it works on uncached memory, but all your demos ensure that the memory is cached!**
+
+    Making it work on uncached memory is trickier, and often requires a bit of tweaking of the parameters. Thus, we ensure that the memory is cached in the PoC to make it easier to reproduce. However, you can simply remove the code that caches the values and replace it by a `clflush` to test the exploit on uncached memory (see Video #5 for an example).
+    Although not in the original blog post by Google, this was also confirmed by independent researchers (e.g. [Alex Ionescu](https://twitter.com/aionescu/status/951261470343360513), [Raphael Carvalho](https://twitter.com/raphael_scarv/status/952078140028964864), [Pavel Boldin](https://www.youtube.com/watch?v=EMBGXswJC4s)).
+
+* **It just does not work on my computer, what can I do?**
+
+    There can be a lot of different reasons for that. We collected a few things you can try:
+    
+    * Ensure that your CPU frequency is at the maximum, and frequency scaling is disabled.
+    * If you run it on a mobile device (e.g., a laptop), ensure that it is plugged in to get the best performance.
+    * Try to pin the tools to a specific CPU core (e.g. with taskset). Also try different cores and core combinations.
+    * Vary the load on your computer. On some machines it works better if the load is higher, on others it works better if the load is lower.
+    * Try to disable hyperthreading in the BIOS. On some computers it works a lot better if hyperthreading is disabled.
+    * Use a different variant of Meltdown. This can be changed in `libkdump/libkdump.c` in the line `#define MELTDOWN meltdown_nonull`. Try for example `meltdown` instead of `meltdown_nonull`, which works a lot better on some machines (but not at all on others). 
+    * Try to create many interrupts, e.g. by running the tool `stress` with `stress -i 2` (or other values for the `i` parameter, depending on the number of cores).
+    * Try to restart the demos and also your computer. Especially after a standby, the timing are broken on some computers. 
+    * Play around with the parameters of libkdump, e.g. increase the number of retries and/or measurements. 
 
 
 ## Warnings

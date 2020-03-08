@@ -102,13 +102,13 @@ size_t libkdump_virt_to_phys(size_t addr);
  *
  * @param[in] addr The physical address to convert
  * 
- * @return The virtual address
+ * @return The virtual address, or -1ULL if an error occured.
  */
 size_t libkdump_phys_to_virt(size_t addr);
 
 
 /**
- * Retrieves the physical address of a virtual address. Requires root (or read permissions for /proc/self/pagemap).
+ * Enables or disables the debug output of libkdump as required.
  *
  * @param[in] enable Enable (1) or disable (0) the debug output of libkdump. Default is disabled. 
  */
